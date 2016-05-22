@@ -1,5 +1,6 @@
 package com.hellomicke89gmail.projektsmartlock;
 
+import android.app.admin.DeviceAdminReceiver;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -8,7 +9,10 @@ import android.content.IntentFilter;
 import android.support.design.widget.NavigationView;
 import android.support.design.widget.Snackbar;
 import android.support.design.widget.TabLayout;
+import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentTransaction;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.AlertDialog;
@@ -22,11 +26,14 @@ import android.view.LayoutInflater;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.DatePicker;
 import android.widget.EditText;
 import android.widget.ImageView;
 
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -218,7 +225,6 @@ public class Controller implements PopupMenu.OnMenuItemClickListener{
     public void errorToast(String txt){
         Snackbar snackbar = Snackbar
                 .make(this.navigationView, txt,   Snackbar.LENGTH_LONG);
-
         snackbar.show();
     }
 
@@ -296,11 +302,17 @@ public class Controller implements PopupMenu.OnMenuItemClickListener{
 
         LayoutInflater inflater=LayoutInflater.from(mainActivity);
         View inputView=inflater.inflate(R.layout.input_dialog, null);
-        AlertDialog.Builder alertDialogBuilder= new AlertDialog.Builder(mainActivity); //AlertDialogBuilder för att få en färdig menu med cancel och ok knapp
-        alertDialogBuilder.setView(inputView);
+        AlertDialog.Builder DialogBuilder= new AlertDialog.Builder(mainActivity); //AlertDialogBuilder för att få en färdig menu med cancel och ok knapp
+        DialogBuilder.setView(inputView);
         final EditText editext=(EditText)inputView.findViewById(R.id.name_edit_text);
 
-        alertDialogBuilder.setCancelable(false).setPositiveButton("Ok", new DialogInterface.OnClickListener(){
+        DialogBuilder.setPositiveButton("SetDate",new DialogInterface.OnClickListener(){
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+
+                    }
+                });
+        DialogBuilder.setCancelable(false).setPositiveButton("Ok", new DialogInterface.OnClickListener(){
 
             public void onClick(DialogInterface dialog, int id){
                 approvedMap=idFragment.getIdMap();
@@ -322,7 +334,7 @@ public class Controller implements PopupMenu.OnMenuItemClickListener{
                 dialog.cancel();
             }
         }).setTitle("CardId: "+key);
-        AlertDialog alert=alertDialogBuilder.create();
+        AlertDialog alert=DialogBuilder.create();
 
         alert.show();
 
@@ -331,29 +343,48 @@ public class Controller implements PopupMenu.OnMenuItemClickListener{
     /**
      * Metoden bygger upp en AlertDialog som innehåller en inputView(som i sin tur instansierat search_input_dialog).
      * Den innehåller även en inre lyssnare som hanterar knappvalen
+     * Innehåller även en fokuslyssnare för edittext för att välja datum
      */
     public void showInputSearchDialog() {
 
         LayoutInflater inflater = LayoutInflater.from(mainActivity);
-        View promptView = inflater.inflate(R.layout.search_input_dialog, null);
+        final View promptView = inflater.inflate(R.layout.search_input_dialog, null);
         //AlertDialogBuilder för att få en färdig menu med cancel och ok knapp
         AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(mainActivity);
         alertDialogBuilder.setView(promptView);
+
+        final EditText etDate=(EditText) promptView.findViewById(R.id.etDate);
+
         final EditText editSearchInput = (EditText) promptView.findViewById(R.id.editSearch);
 
         alertDialogBuilder.setCancelable(false);
-        alertDialogBuilder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+        alertDialogBuilder.setTitle("Search in Log:");
+        //Lyssnare för när man trycker på edittext fältet för att få upp en kalender
+        etDate.setOnFocusChangeListener(new View.OnFocusChangeListener(){
+            public void onFocusChange(View view, boolean hasfocus){
+                if(hasfocus){
+                    //Skapar ny dialog fragment och visar upp kalendern
+                    DialogFragment dialogFragment = new DatePickerFragment(etDate);
+                    dialogFragment.show(mainActivity.getSupportFragmentManager(), "Date_picker_fragment");
+                }
+            }
+
+        });
+        //Lyssnare för när man trycker search vilket söker och ger en ny lista man sökt efter
+        alertDialogBuilder.setPositiveButton("Search", new DialogInterface.OnClickListener() {
 
             public void onClick(DialogInterface dialog, int which) {
                 Log.v("OnClick 'ok' :", "");
-                String logType = editSearchInput.getText().toString();
+                String logType = editSearchInput.getText().toString()+"&"+etDate.getText();
+                //Väljer andra tabben automatiskt
                 TabLayout.Tab tab=tabLayout.getTabAt(1);
                 tab.select();
                 Log.v("OnClick type: ", "" + logType);
+                //Hämtar den sökta listan från servern
                 new AsyncTaskLogGET(Controller.this,authString,logType).execute();
             }
-        }).setTitle("Search in Log:");
-
+        });
+        //Lyssnare för cancle knappen vilket avbryter söknings input
         alertDialogBuilder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
 
             public void onClick(DialogInterface dialog, int which) {
@@ -361,9 +392,11 @@ public class Controller implements PopupMenu.OnMenuItemClickListener{
                 dialog.cancel();
             }
         });
+
         AlertDialog alert = alertDialogBuilder.create();
         alert.show();
     }
+
 
 
     /**
@@ -389,6 +422,7 @@ public class Controller implements PopupMenu.OnMenuItemClickListener{
     public void unregisterRecievers(){
         LocalBroadcastManager.getInstance(mainActivity).unregisterReceiver(broadcastReceiver);
     }
+
 
 
     /**
@@ -482,6 +516,8 @@ public class Controller implements PopupMenu.OnMenuItemClickListener{
         mainActivity.finish();//mainactivity avslutas
         mainActivity.startActivity(intent);//LoginActivity startas
     }
+
+
 
 
 }
